@@ -5,18 +5,15 @@ import os
 # إعدادات الصفحة
 st.set_page_config(page_title="منصة المعلم الذكي", layout="wide")
 
-# تطبيق تنسيقات ملونة مخصصة واستدعاء خط Cairo بدون إيموجي
+# تطبيق تنسيقات ملونة مخصصة واستدعاء خط Cairo
 custom_css = """
 <style>
-    /* استدعاء خط Cairo من Google Fonts */
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
 
-    /* تطبيق الخط على جميع النصوص في الصفحة */
     html, body, [class*="css"], div, span, button, input, select, textarea {
         font-family: 'Cairo', sans-serif !important;
     }
 
-    /* تصميم التبويبات بألوان مختلفة */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
     }
@@ -27,11 +24,10 @@ custom_css = """
         font-weight: bold;
     }
     
-    /* ألوان التبويبات الأربعة */
-    button[id*="-tab-0"] { background-color: #1E88E5 !important; } /* أزرق */
-    button[id*="-tab-1"] { background-color: #43A047 !important; } /* أخضر */
-    button[id*="-tab-2"] { background-color: #FB8C00 !important; } /* برتقالي */
-    button[id*="-tab-3"] { background-color: #8E24AA !important; } /* بنفسجي */
+    button[id*="-tab-0"] { background-color: #1E88E5 !important; }
+    button[id*="-tab-1"] { background-color: #43A047 !important; }
+    button[id*="-tab-2"] { background-color: #FB8C00 !important; }
+    button[id*="-tab-3"] { background-color: #8E24AA !important; }
 </style>
 """
 st.markdown(custom_css, unsafe_allow_html=True)
@@ -61,3 +57,47 @@ grade = st.sidebar.selectbox("الصف الدراسي", [
 ])
 lesson_title = st.sidebar.text_input("عنوان الدرس", "الدورة الدموية")
 duration = st.sidebar.slider("مدة الحصة بالدقائق", 30, 60, 45)
+
+# الواجهة الرئيسية
+st.title("منصة المعلم الذكي - المنهج السعودي")
+st.write(f"مرحباً بك {teacher_name} - {school_name}")
+
+# التبويبات الأربعة
+tab1, tab2, tab3, tab4 = st.tabs([
+    "التمايز وإدارة الفصل", 
+    "العروض وأوراق العمل", 
+    "ربط المناهج والتصدير", 
+    "النصيحة اليومية والأدوات"
+])
+
+with tab1:
+    st.header("ميزات التمايز واستراتيجيات التدريس")
+    if st.button("توليد خطة التمايز والأسئلة"):
+        if api_key:
+            prompt = f"قم بصياغة شرح لدرس {lesson_title} في مادة {subject} للصف {grade} لثلاث مستويات (ضعيف، متوسط، متفوق) مع استراتيجية تدريس نشطة وبنك أسئلة."
+            response = model.generate_content(prompt)
+            st.write(response.text)
+
+with tab2:
+    st.header("توليد أدوات التدريس والعروض")
+    if st.button("توليد محتوى العرض ورقة العمل"):
+        if api_key:
+            prompt = f"أنشئ محتوى عرض تقديمي PPT ورقة عمل مع نموذج الإجابة ونشاط كسر الجليد لدرس {lesson_title} في مادة {subject}."
+            response = model.generate_content(prompt)
+            st.write(response.text)
+
+with tab3:
+    st.header("التكامل ومعايير المناهج")
+    if st.button("ربط المناهج وسلم التقييم"):
+        if api_key:
+            prompt = f"ربط درس {lesson_title} في مادة {subject} مع نواتج التعلم وسلم التقييم Rubric وملاحظة المفاهيم الخاطئة الشائعة."
+            response = model.generate_content(prompt)
+            st.write(response.text)
+
+with tab4:
+    st.header("النصيحة اليومية وأدوات الإغلاق")
+    if st.button("توليد النصيحة وسيناريو الشرح"):
+        if api_key:
+            prompt = f"قدم نصيحة تربوية يومية للمعلم، وسيناريو صوتي للشرح، وبطاقة خروج Exit Ticket لدرس {lesson_title}."
+            response = model.generate_content(prompt)
+            st.write(response.text)
