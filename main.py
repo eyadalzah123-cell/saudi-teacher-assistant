@@ -37,7 +37,7 @@ api_key = os.environ.get("GEMINI_API_KEY")
 if api_key:
     genai.configure(api_key=api_key)
     # استخدام اسم النموذج المعتمد
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-pro')
 else:
     st.error("خطأ: لم يتم العثور على المفتاح GEMINI_API_KEY في قسم Secrets")
 
