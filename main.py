@@ -36,7 +36,7 @@ st.markdown(custom_css, unsafe_allow_html=True)
 api_key = os.environ.get("GEMINI_API_KEY")
 if api_key:
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-1.5-flash-latest')
+    model = genai.GenerativeModel('gemini-1.5-flash')
 else:
     st.error("خطأ: لم يتم العثور على المفتاح GEMINI_API_KEY في قسم Secrets")
 
