@@ -3,73 +3,62 @@ import google.generativeai as genai
 import os
 
 # إعدادات الصفحة
-st.set_page_config(page_title="مساعد المعلم الذكي", page_icon="📚", layout="wide")
+st.set_page_config(page_title="منصة المعلم الذكي المتكاملة", page_icon="🏫", layout="wide")
 
-# جلب المفتاح الآمن من Secrets
+# جلب المفتاح الآمن
 api_key = os.environ.get("GEMINI_API_KEY")
 
 if api_key:
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    # استخدام اسم النموذج المستقر
+    model = genai.GenerativeModel('gemini-1.5-flash-latest')
 else:
     st.error("⚠️ لم يتم العثور على المفتاح GEMINI_API_KEY في قسم Secrets!")
 
-# اختيار جنس المستخدم لتعديل الواجهة
-st.sidebar.title("⚙️ الإعدادات والبيانات")
-gender = st.sidebar.radio("صفة المستخدم:", ["معلم 👨‍🏫", "معلمة 👩‍🏫"])
+# --- 1. الشريط الجانبي (Sidebar) للإعدادات ---
+st.sidebar.title("⚙️ إعدادات المعلم والدرس")
 
-# تخصيص النصوص والترحيب حسب الجنس
-if "معلمة" in gender:
-    welcome_msg = "أهلاً بكِ يا أستاذة! دعينَا نعدّ درساً مميزاً اليوم ✨"
-    btn_text = "🚀 تحضير الدرس الآن يا أستاذة"
-    pronoun_text = "أعدّته المعلمة"
-else:
-    welcome_msg = "أهلاً بك يا أستاذ! دعنا نعد درساً مميزاً اليوم ✨"
-    btn_text = "🚀 تحضير الدرس الآن يا أستاذ"
-    pronoun_text = "أعدّه المعلم"
+# بيانات المعلم والمدرسة
+st.sidebar.subheader("👤 بيانات المعلم")
+teacher_name = st.sidebar.text_input("اسم المعلم/المعلمة", "أحمد")
+school_name = st.sidebar.text_input("اسم المدرسة", "مدرسة النجاح")
+gender = st.sidebar.radio("الجنس:", ["معلم 👨‍🏫", "معلمة 👩‍🏫"])
 
-st.title("📚 مساعد المعلم الذكي - المنهج السعودي")
-st.subheader(welcome_msg)
+# بيانات الدرس
+st.sidebar.subheader("📚 بيانات الدرس")
+subject = st.sidebar.text_input("المادة", "العلوم")
+grade = st.sidebar.selectbox("الصف الدراسي", [
+    "الأول الابتدائي", "الثاني الابتدائي", "الثالث الابتدائي",
+    "الرابع الابتدائي", "الخامس الابتدائي", "السادس الابتدائي",
+    "الأول متوسط", "الثاني متوسط", "الثالث متوسط", "الثانوي"
+])
+lesson_title = st.sidebar.text_input("عنوان الدرس", "الدورة الدموية")
+duration = st.sidebar.slider("مدة الحصة (دقائق)", 30, 60, 45)
 
-# مدخلات الدرس
-with st.sidebar:
-    subject = st.text_input("اسم المادة", "العلوم")
-    grade = st.selectbox("الصف الدراسي", [
-        "الأول الابتدائي", "الثاني الابتدائي", "الثالث الابتدائي",
-        "الرابع الابتدائي", "الخامس الابتدائي", "السادس الابتدائي",
-        "الأول متوسط", "الثاني متوسط", "الثالث متوسط", "الثانوي"
-    ])
-    lesson_title = st.text_input("عنوان الدرس", "الدورة الدموية")
-    duration = st.slider("مدة الحصة (بالدقائق)", 30, 60, 45)
-    generate_btn = st.button(btn_text)
+# --- 2. الواجهة الرئيسية والتبويبات (Tabs) ---
+st.title("🏫 منصة المعلم الذكي - المنهج السعودي")
+st.caption(f"مرحباً بك ({teacher_name}) - {school_name}")
 
-# التوليد عبر Gemini
-if generate_btn:
-    if not api_key:
-        st.error("يرجى التأكد من إضافة GEMINI_API_KEY في قسم Secrets قبل البدء.")
-    else:
-        with st.spinner("جاري التواصل مع الذكاء الاصطناعي وصياغة التحضير وفق المنهج السعودي... ⏳"):
-            prompt = f"""
-            بصفتك خبيراً في المنهج الوطني السعودي، قم بإعداد خطة درس متكاملة ومفصلة.
-            بيانات الدرس:
-            - المادة: {subject}
-            - الصف: {grade}
-            - عنوان الدرس: {lesson_title}
-            - مدة الحصة: {duration} دقيقة
-            - الصيغة الموجهة: {gender}
+# إنشاء التبويبات لتنظيم الميزات الـ 12
+tab1, tab2, tab3, tab4 = st.tabs([
+    "🎯 التمايز وإدارة الفصل", 
+    "🎨 العروض وأوراق العمل", 
+    "📌 ربط المناهج والتصدير", 
+    "💡 النصيحة اليومية والأدوات"
+])
 
-            قم بتضمين العناصر التالية بوضوح:
-            1. أهداف الدرس ونواتج التعلم المعتمدة.
-            2. نشاط التمهيد وكسر الجليد (5 دقائق).
-            3. الشرح المكتوب واستراتيجيات التدريس النشط والتعديلات للتمايز (مبتدئ، متوسط، متقدم).
-            4. بنك أسئلة فحص الفهم أثناء الشرح مع الإجابات النموذجية.
-            5. المفاهيم الخاطئة الشائعة وكيفية معالجتها.
-            6. نشاط الغلق وبطاقات الخروج (Exit Tickets).
-            """
-            
-            try:
-                response = model.generate_content(prompt)
-                st.success(f"تم إعداد التحضير بنجاح! ({pronoun_text})")
-                st.markdown(response.text)
-            except Exception as e:
-                st.error(f"حدث خطأ أثناء الاتصال بـ Gemini: {e}")
+with tab1:
+    st.header("🎯 ميزات التمايز واستراتيجيات التدريس")
+    st.write("هنا ستكون ميزات التمايز، الاستراتيجيات النشطة، وبنك الأسئلة.")
+
+with tab2:
+    st.header("🎨 الأدوات التفاعلية والعروض")
+    st.write("هنا ستكون ميزات العروض التقديمية، أوراق العمل، وأنشطة كسر الجليد.")
+
+with tab3:
+    st.header("📌 المناهج، التقييم والتصدير")
+    st.write("هنا ستكون ميزات نواتج التعلم، سلم التقييم، وتصدير خطة الدرس.")
+
+with tab4:
+    st.header("💡 النصيحة اليومية والمساعد الصوتي")
+    st.write("هنا ستكون النصيحة اليومية وسيناريو الشرح.")
