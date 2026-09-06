@@ -107,5 +107,4 @@ with tab4:
                 st.markdown(response.choices[0].message.content)
                 
             except Exception as e:
-                st.error(f"حدث خطأ أثناء التوليد: {
-            
+                st.error(f"حدث خطأ أثناء التوليد: {e}")
