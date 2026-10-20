@@ -69,7 +69,7 @@ st.write(f"مرحباً بك {teacher_name} - {school_name}")
 def generate_ai_response(prompt):
     try:
         response = client.chat.completions.create(
-            model="meta-llama/llama-3.3-70b-instruct:free",
+            model="openrouter/free",
             messages=[
                 {"role": "system", "content": "أنت مساعد معلم احترافي متخصص في المنهج السعودي."},
                 {"role": "user", "content": prompt}
