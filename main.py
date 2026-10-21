@@ -1,124 +1,98 @@
-import streamlit as st
-import os
-from openai import OpenAI
-
-# إعدادات الصفحة
-st.set_page_config(page_title="منصة المعلم الذكي", layout="wide")
-
-# تطبيق تنسيقات ملونة مخصصة واستدعاء خط Cairo بدون إيموجي
-custom_css = """
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
-
-    html, body, [class*="css"], div, span, button, input, select, textarea {
-        font-family: 'Cairo', sans-serif !important;
-    }
-
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        padding: 10px 20px;
-        border-radius: 5px;
-        color: #FFFFFF;
-        font-weight: bold;
-    }
-    
-    button[id*="-tab-0"] { background-color: #1E88E5 !important; }
-    button[id*="-tab-1"] { background-color: #43A047 !important; }
-    button[id*="-tab-2"] { background-color: #FB8C00 !important; }
-    button[id*="-tab-3"] { background-color: #8E24AA !important; }
-</style>
-"""
-st.markdown(custom_css, unsafe_allow_html=True)
-
-# إعداد مفتاح OpenRouter API
-openrouter_key = os.environ.get("OPENROUTER_API_KEY")
-
-if openrouter_key:
-    client = OpenAI(
-        base_url="https://openrouter.ai/api/v1",
-        api_key=openrouter_key,
-    )
-else:
-    st.error("خطأ: لم يتم العثور على المفتاح OPENROUTER_API_KEY في قسم Secrets")
-
-# الشريط الجانبي للإعدادات
-st.sidebar.title("إعدادات المعلم والدرس")
-
-st.sidebar.subheader("بيانات المعلم")
-teacher_name = st.sidebar.text_input("اسم المعلم أو المعلمة", "أحمد")
-school_name = st.sidebar.text_input("اسم المدرسة", "مدرسة النجاح")
-gender = st.sidebar.radio("الجنس", ["معلم", "معلمة"])
-
-st.sidebar.subheader("بيانات الدرس")
-subject = st.sidebar.text_input("المادة", "العلوم")
-grade = st.sidebar.selectbox("الصف الدراسي", [
-    "الأول الابتدائي", "الثاني الابتدائي", "الثالث الابتدائي",
-    "الرابع الابتدائي", "الخامس الابتدائي", "السادس الابتدائي",
-    "الأول متوسط", "الثاني متوسط", "الثالث متوسط", "الثانوي"
-])
-lesson_title = st.sidebar.text_input("عنوان الدرس", "الدورة الدموية")
-duration = st.sidebar.slider("مدة الحصة بالدقائق", 30, 60, 45)
-
-# الواجهة الرئيسية
-st.title("منصة المعلم الذكي - المنهج السعودي")
-st.write(f"مرحباً بك {teacher_name} - {school_name}")
-
-# دالة مساعدة لإرسال الأوامر عبر OpenRouter
-def generate_ai_response(prompt):
+    if key:
+        return key
     try:
-        response = client.chat.completions.create(
-            model="openrouter/free",
-            messages=[
-                {"role": "system", "content": "أنت مساعد معلم احترافي متخصص في المنهج السعودي."},
-                {"role": "user", "content": prompt}
-            ]
-        )
-        return response.choices[0].message.content
+        return str(st.secrets.get("OPENROUTER_API_KEY", "")).strip()
+    except Exception:
+        return ""
+
+
+def generate(kind, data, additional):
+    key = get_key()
+    if not key:
+        st.error("لم يُضبط مفتاح OpenRouter. أضف OPENROUTER_API_KEY في Secrets الخاصة بالتطبيق.")
+        return
+    task = TOOLS[kind]
+    context = f"الصف: {data['grade']}\nالمادة: {data['subject']}\nالفصل الدراسي: {data['semester']}\nالوحدة: {data['unit']}\nعنوان الدرس: {data['lesson']}\nمدة الحصة: {data['duration']} دقيقة\nاسم المعلم: {data['teacher']}\nملاحظات إضافية: {additional or 'لا يوجد'}"
+    messages = [
+        {"role":"system", "content": "أنت مساعد تربوي محترف لدعم معلمي المدارس السعودية. اكتب بالعربية السليمة مع عناوين وتنظيم مناسب. التزم بالفئة العمرية وزمن الحصة. لا تدّع الاطلاع على كتاب مدرسي أو صفحاته أو توافقًا رسميًا دون أن تُزوَّد بنص الكتاب. إن كان محتوى المقرر غير مرفق، قدم اقتراحًا تعليميًا عامًا واذكر ضرورة مطابقته مع الكتاب المعتمد. اجعل المخرجات عملية ومحددة، وتجنب المقدمات الطويلة."},
+        {"role":"user", "content": f"المهمة: {task}\n\nبيانات الدرس:\n{context}"}
+    ]
+    try:
+        with st.spinner("يجري إعداد المحتوى التعليمي..."):
+            response = make_client(key).chat.completions.create(model=os.getenv("OPENROUTER_MODEL", "openrouter/free"),messages=messages, temperature=0.5, max_tokens=2600)
+        content = response.choices[0].message.content
+        if not content:
+            st.error("لم يرجع النموذج محتوى. حاول إعادة التوليد.")
+            return
+        st.session_state['last_result'] = content
+        st.session_state['last_tool'] = kind
     except Exception as e:
-        return f"حدث خطأ أثناء التوليد: {e}"
+        message = str(e)
+        if any(s in message.lower() for s in ('401','invalid api key','unauthorized')):
+            st.error("تعذر التحقق من مفتاح API. راجع إعدادات Secrets.")
+        elif '429' in message:
+            st.error("تم بلوغ حد الطلبات. حاول لاحقًا أو غيّر النموذج.")
+        elif '404' in message or 'model' in message.lower() and 'unavailable' in message.lower():
+            st.error("النموذج المحدد غير متاح حاليًا. تحقق من OPENROUTER_MODEL.")
+        else:
+            st.error("تعذر إتمام طلب الذكاء الاصطناعي.")
+            with st.expander("التفاصيل التقنية"):
+                st.code(re.sub(r'sk-[A-Za-z0-9_-]+', '[HIDDEN_KEY]', message)[:900])
 
-# التبويبات الأربعة
-tab1, tab2, tab3, tab4 = st.tabs([
-    "التمايز وإدارة الفصل", 
-    "العروض وأوراق العمل", 
-    "ربط المناهج والتصدير", 
-    "النصيحة اليومية والأدوات"
-])
+with st.sidebar:
+    st.markdown("### إعدادات المعلم")
+    teacher = st.text_input("اسم المعلم أو المعلمة", placeholder="مثال: أحمد")
+    school = st.text_input("اسم المدرسة (اختياري)", placeholder="اسم المدرسة")
+    st.divider()
+    st.markdown("### بيانات الدرس")
+    grade = st.selectbox("الصف الدراسي", GRADES)
+    subject = st.selectbox("المادة الدراسية", SUBJECTS)
+    if subject == "مادة أخرى":
+        subject = st.text_input("اسم المادة", placeholder="اكتب اسم المادة")
+    semester = st.selectbox("الفصل الدراسي", ["الأول", "الثاني", "الثالث", "غير محدد"])
+    unit = st.text_input("الوحدة (اختياري)", placeholder="اكتب اسم الوحدة")
+    lesson = st.text_input("عنوان الدرس", placeholder="اكتب عنوان الدرس كما يظهر في الكتاب")
+    duration = st.slider("مدة الحصة (بالدقائق)", 20, 90, 45, 5)
+    st.divider()
+    if get_key():
+        st.success("تم العثور على إعدادات الاتصال بالذكاء الاصطناعي")
+    else:
+        st.warning("مفتاح OpenRouter غير مضبوط")
+    st.caption("قوائم المواد استرشادية. لم تُربط كتب المناهج أو فهارسها رسميًا بهذه النسخة.")
 
-with tab1:
-    st.header("ميزات التمايز واستراتيجيات التدريس")
-    if st.button("توليد خطة التمايز والأسئلة"):
-        if openrouter_key:
-            with st.spinner("جاري التوليد..."):
-                prompt = f"قم بصياغة شرح لدرس {lesson_title} في مادة {subject} للصف {grade} لثلاث مستويات (مبتدئ، متوسط، متفوق) مع استراتيجية تدريس نشطة وبنك أسئلة."
-                result = generate_ai_response(prompt)
-                st.write(result)
+data = {'teacher':teacher or 'المعلم', 'grade':grade, 'subject':subject, 'semester':semester, 'unit':unit or 'غير محددة', 'lesson':lesson, 'duration':duration}
+st.markdown("""<div class='hero'><div class='eyebrow'>منصة تعليمية ذكية للمعلم السعودي</div><div class='heading'>المعلم الذكي</div><div class='sub'>من فكرة الدرس إلى محتوى تعليمي جاهز للتطوير — تحضير، شرح، أنشطة، تقويم، وموارد صفية في مكان واحد.</div></div>""", unsafe_allow_html=True)
+if school:
+    st.caption(f"{school}  •  {grade}  •  {subject}")
+else:
+    st.caption(f"{grade}  •  {subject}")
+if not lesson.strip():
+    st.info("ابدأ بكتابة عنوان الدرس في القائمة الجانبية، ثم اختر الأداة المطلوبة.")
 
-with tab2:
-    st.header("توليد أدوات التدريس والعروض")
-    if st.button("توليد محتوى العرض ورقة العمل"):
-        if openrouter_key:
-            with st.spinner("جاري التوليد..."):
-                prompt = f"أنشئ محتوى عرض تقديمي PPT ورقة عمل مع نموذج الإجابة ونشاط كسر الجليد لدرس {lesson_title} في مادة {subject}."
-                result = generate_ai_response(prompt)
-                st.write(result)
+labels = ["التحضير والشرح", "الأنشطة وأوراق العمل", "التقويم والمتابعة", "أدوات المعلم"]
+tabs = st.tabs(labels)
+groups = [
+    ["تحضير الدرس", "شرح الدرس", "ملخص الدرس", "أهداف التعلم"],
+    ["أنشطة صفية", "ورقة عمل", "أسئلة متدرجة", "خطة التمايز"],
+    ["اختبار قصير", "بطاقة خروج", "سلّم تقدير الأداء"],
+    ["استراتيجيات التدريس", "شرائح عرض", "نصيحة للمعلم"],
+]
+for tab, options in zip(tabs, groups):
+    with tab:
+        selected = st.selectbox("اختر الأداة", options, key=f"sel_{options[0]}")
+        st.markdown(f"**ماذا ستنجز؟** {TOOLS[selected]}")
+        extra = st.text_area("تعليمات إضافية (اختياري)", height=95, placeholder="مثل: ركّز على التعلم التعاوني أو قدّم أسئلة أسهل", key=f"extra_{options[0]}")
+        if st.button("إنشاء المحتوى", type="primary", key=f"go_{options[0]}", use_container_width=True):
+            if not lesson.strip():
+                st.warning("يرجى كتابة عنوان الدرس أولًا.")
+            elif not subject.strip():
+                st.warning("يرجى إدخال اسم المادة.")
+            else:
+                generate(selected, data, extra)
 
-with tab3:
-    st.header("التكامل ومعايير المناهج")
-    if st.button("ربط المناهج وسلم التقييم"):
-        if openrouter_key:
-            with st.spinner("جاري التوليد..."):
-                prompt = f"ربط درس {lesson_title} في مادة {subject} مع نواتج التعلم وسلم التقييم Rubric وملاحظة المفاهيم الخاطئة الشائعة."
-                result = generate_ai_response(prompt)
-                st.write(result)
-
-with tab4:
-    st.header("النصيحة اليومية وأدوات الإغلاق")
-    if st.button("توليد النصيحة وسيناريو الشرح"):
-        if openrouter_key:
-            with st.spinner("جاري التوليد..."):
-                prompt = f"قدم نصيحة تربوية يومية للمعلم، وسيناريو صوتي للشرح، وبطاقة خروج Exit Ticket لدرس {lesson_title}."
-                result = generate_ai_response(prompt)
-                st.write(result)
+if st.session_state.get('last_result'):
+    st.divider()
+    st.subheader(f"النتيجة: {st.session_state.get('last_tool', 'المحتوى')}")
+    st.markdown(st.session_state['last_result'])
+    st.download_button("تنزيل المحتوى كنص", data=st.session_state['last_result'].encode('utf-8-sig'), file_name=f"teacher_result_{datetime.now():%Y%m%d_%H%M}.txt", mime="text/plain", use_container_width=True)
+    st.caption("راجع المحتوى قبل استخدامه مع الطلاب، وطابق التفاصيل العلمية مع الكتاب المعتمد.")
